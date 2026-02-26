@@ -42,22 +42,10 @@ async function autoSeedIfEmpty() {
 
     await initSchema(pool);
 
-    const { rows } = await pool.query('SELECT COUNT(*) as n FROM users');
-    if (Number(rows[0].n) === 0) {
-      console.log('[seed] Empty database — running initial seed...');
-      const { seed } = require('./database/seed');
-      await seed();
-      console.log('[seed] Done.');
-    } else {
-      // Always re-seed riddles to apply description/audio updates
-      const { rows: r } = await pool.query('SELECT COUNT(*) as n FROM riddles');
-      if (Number(r[0].n) === 0) {
-        console.log('[seed] No riddles found — re-seeding riddles...');
-        const { seed } = require('./database/seed');
-        await seed();
-        console.log('[seed] Done.');
-      }
-    }
+    console.log('[seed] Syncing riddles and admin account...');
+    const { seed } = require('./database/seed');
+    await seed();
+    console.log('[seed] Done.');
   } catch (err) {
     console.error('[seed] Auto-seed failed:', err.message);
   }
