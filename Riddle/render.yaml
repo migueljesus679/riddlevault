@@ -2,6 +2,7 @@ services:
   - type: web
     name: riddlevault
     env: node
+    rootDir: Riddle
     buildCommand: npm install --prefix backend && npm install --prefix frontend && npm run build --prefix frontend
     startCommand: npm start
     envVars:
