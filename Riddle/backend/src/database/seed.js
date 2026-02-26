@@ -102,11 +102,12 @@ const RIDDLES = [
   // ─── HARD ─────────────────────────────────────────────────────────────────────
   {
     title: 'Intercepted Signal', title_pt: 'Sinal Interceptado',
-    description: 'A distress call was intercepted from the deep ocean.\nThe transmission was corrupted — only dots and dashes survived.\nDecode the Morse code to find the hidden word:\n\n  -- -.-- ... - . .-. -.--\n\nWhat was the distress call?',
-    description_pt: 'Um pedido de socorro foi interceptado do oceano profundo.\nA transmissão estava corrompida — apenas pontos e traços sobreviveram.\nDecifra o código Morse para encontrar a palavra escondida:\n\n  -- -.-- ... - . .-. -.--\n\nQual era o pedido de socorro?',
+    description: 'A distress call was intercepted from the deep ocean.\nThe transmission was corrupted — only dots and dashes survived.\n\nListen to the audio transmission below and decode the Morse code to find the hidden word.\n\nWhat was the distress call?',
+    description_pt: 'Um pedido de socorro foi interceptado do oceano profundo.\nA transmissão estava corrompida — apenas pontos e traços sobreviveram.\n\nOuve a transmissão áudio abaixo e decifra o código Morse para encontrar a palavra escondida.\n\nQual era o pedido de socorro?',
     difficulty: 'hard', answer: 'mystery', answer_pt: 'mistério',
     hint: 'Morse code: each letter is separated by a space. Use a Morse alphabet chart to decode letter by letter.',
     hint_pt: 'Código Morse: cada letra é separada por um espaço. Usa uma tabela Morse para decifrar letra a letra.',
+    audio_path: 'riddle_11.wav',
     points_reward: 50, order_index: 11,
   },
   {
@@ -208,11 +209,13 @@ async function seed() {
       INSERT INTO riddles
         (title, title_pt, description, description_pt, difficulty,
          answer_hash, answer_plain, answer_hash_pt, answer_plain_pt,
-         hint, hint_pt, image_path, points_reward, order_index, is_active)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,1)
+         hint, hint_pt, image_path, audio_path, points_reward, order_index, is_active)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,1)
       ON CONFLICT (order_index) DO UPDATE SET
         title_pt = EXCLUDED.title_pt,
         description_pt = EXCLUDED.description_pt,
+        description = EXCLUDED.description,
+        audio_path = EXCLUDED.audio_path,
         answer_hash_pt = EXCLUDED.answer_hash_pt,
         answer_plain_pt = EXCLUDED.answer_plain_pt,
         hint_pt = EXCLUDED.hint_pt
@@ -221,7 +224,8 @@ async function seed() {
       hashAnswer(r.answer), r.answer,
       hashAnswer(r.answer_pt), r.answer_pt,
       r.hint, r.hint_pt,
-      r.image_path || null, r.points_reward, r.order_index,
+      r.image_path || null, r.audio_path || null,
+      r.points_reward, r.order_index,
     ]);
   }
 

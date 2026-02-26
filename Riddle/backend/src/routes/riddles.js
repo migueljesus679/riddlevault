@@ -38,7 +38,7 @@ router.get('/', optionalAuth, async (req, res) => {
     const pool = getDb();
     let query = `
       SELECT id, title, title_pt, description, description_pt, difficulty,
-             hint, hint_pt, image_path, points_reward, order_index
+             hint, hint_pt, image_path, audio_path, points_reward, order_index
       FROM riddles WHERE is_active = 1
     `;
     const params = [];
@@ -78,7 +78,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
     const pool = getDb();
     const { rows } = await pool.query(
       `SELECT id, title, title_pt, description, description_pt, difficulty,
-              hint, hint_pt, image_path, points_reward, order_index
+              hint, hint_pt, image_path, audio_path, points_reward, order_index
        FROM riddles WHERE id = $1 AND is_active = 1`,
       [req.params.id]
     );

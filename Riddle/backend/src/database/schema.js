@@ -27,6 +27,7 @@ async function initSchema(pool) {
       hint TEXT NOT NULL DEFAULT '',
       hint_pt TEXT,
       image_path TEXT,
+      audio_path TEXT,
       points_reward INTEGER NOT NULL DEFAULT 10,
       order_index INTEGER NOT NULL DEFAULT 0,
       is_active INTEGER NOT NULL DEFAULT 1,

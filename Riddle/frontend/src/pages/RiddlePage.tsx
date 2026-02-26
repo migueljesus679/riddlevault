@@ -140,6 +140,23 @@ export default function RiddlePage() {
                 </pre>
               </div>
 
+              {(riddle as any).audio_path && (
+                <div className="space-y-2">
+                  <p className="font-mono text-xs text-green-neon/70 flex items-center gap-2">
+                    <span>📡</span>
+                    {lang === 'pt' ? 'Transmissão interceptada — ouve com atenção:' : 'Intercepted transmission — listen carefully:'}
+                  </p>
+                  <audio
+                    controls
+                    className="w-full rounded-lg"
+                    style={{ accentColor: '#00ff41' }}
+                    src={`/audio/${(riddle as any).audio_path}`}
+                  >
+                    Your browser does not support audio playback.
+                  </audio>
+                </div>
+              )}
+
               {riddle.image_path && (
                 <div className="space-y-2">
                   <div className="relative group">
