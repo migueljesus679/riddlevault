@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { FiSend, FiEye, FiEyeOff } from 'react-icons/fi';
+import { useLang } from '../context/LanguageContext';
 
 interface AnswerFormProps {
   onSubmit: (answer: string) => Promise<void>;
@@ -9,6 +10,7 @@ interface AnswerFormProps {
 }
 
 export default function AnswerForm({ onSubmit, hint, disabled, solved }: AnswerFormProps) {
+  const { t } = useLang();
   const [answer, setAnswer] = useState('');
   const [loading, setLoading] = useState(false);
   const [showHint, setShowHint] = useState(false);
@@ -30,7 +32,7 @@ export default function AnswerForm({ onSubmit, hint, disabled, solved }: AnswerF
       <div className="mt-6 text-center py-8">
         <div className="text-5xl mb-3">✅</div>
         <p className="text-green-neon font-mono font-bold text-xl">SOLVED</p>
-        <p className="text-gray-400 text-sm mt-1 font-mono">You cracked this one!</p>
+        <p className="text-gray-400 text-sm mt-1 font-mono">{t.riddle.alreadySolved}</p>
       </div>
     );
   }
@@ -42,7 +44,7 @@ export default function AnswerForm({ onSubmit, hint, disabled, solved }: AnswerF
           type="text"
           value={answer}
           onChange={(e) => setAnswer(e.target.value)}
-          placeholder="Enter your answer..."
+          placeholder={t.riddle.yourAnswer}
           className="input-field"
           disabled={disabled || loading}
           autoComplete="off"
@@ -56,7 +58,7 @@ export default function AnswerForm({ onSubmit, hint, disabled, solved }: AnswerF
           {loading ? (
             <span className="animate-spin inline-block">⟳</span>
           ) : (
-            <><FiSend /> Submit</>
+            <><FiSend /> {t.riddle.submitAnswer}</>
           )}
         </button>
       </form>
@@ -67,7 +69,7 @@ export default function AnswerForm({ onSubmit, hint, disabled, solved }: AnswerF
         className="flex items-center gap-2 text-sm text-gray-500 hover:text-amber-400 font-mono transition-colors"
       >
         {showHint ? <FiEyeOff /> : <FiEye />}
-        {showHint ? 'Hide hint' : 'Show hint'}
+        {showHint ? t.riddle.hideHint : t.riddle.showHint}
       </button>
 
       {showHint && (

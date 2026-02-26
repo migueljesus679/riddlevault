@@ -3,21 +3,23 @@ import { Link } from 'react-router-dom';
 import api from '../api/client';
 import type { Riddle, Difficulty } from '../types';
 import ProgressBar from '../components/ProgressBar';
-
-const LEVELS: { key: Difficulty; label: string; icon: string; desc: string; color: string; progress: string }[] = [
-  { key: 'easy',     label: 'Easy',     icon: '🟢', desc: 'Classic riddles and wordplay. A perfect warm-up.',  color: 'border-green-600/50 hover:border-green-400/80 hover:bg-green-900/10',  progress: 'bg-green-400' },
-  { key: 'medium',   label: 'Medium',   icon: '🟡', desc: 'Logic puzzles, lateral thinking, tricky wordplay.', color: 'border-yellow-600/50 hover:border-yellow-400/80 hover:bg-yellow-900/10', progress: 'bg-yellow-400' },
-  { key: 'hard',     label: 'Hard',     icon: '🟠', desc: 'Morse Code, Caesar, Vigenère, Binary, Hexadecimal.', color: 'border-orange-600/50 hover:border-orange-400/80 hover:bg-orange-900/10', progress: 'bg-orange-400' },
-  { key: 'ultimate', label: 'Ultimate', icon: '🔴', desc: 'Steganography, PGP armor, multi-step cipher chains.', color: 'border-red-600/50 hover:border-red-400/80 hover:bg-red-900/10',    progress: 'bg-red-400' },
-];
+import { useLang } from '../context/LanguageContext';
 
 export default function GameLobby() {
+  const { t, lang } = useLang();
   const [riddles, setRiddles] = useState<Riddle[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     api.get<Riddle[]>('/riddles').then(({ data }) => setRiddles(data)).finally(() => setLoading(false));
   }, []);
+
+  const LEVELS: { key: Difficulty; label: string; icon: string; desc: string; color: string; progress: string }[] = [
+    { key: 'easy',     label: t.difficulty.easy,     icon: '🟢', desc: t.home.easyDesc,     color: 'border-green-600/50 hover:border-green-400/80 hover:bg-green-900/10',  progress: 'bg-green-400' },
+    { key: 'medium',   label: t.difficulty.medium,   icon: '🟡', desc: t.home.mediumDesc,   color: 'border-yellow-600/50 hover:border-yellow-400/80 hover:bg-yellow-900/10', progress: 'bg-yellow-400' },
+    { key: 'hard',     label: t.difficulty.hard,     icon: '🟠', desc: t.home.hardDesc,     color: 'border-orange-600/50 hover:border-orange-400/80 hover:bg-orange-900/10', progress: 'bg-orange-400' },
+    { key: 'ultimate', label: t.difficulty.ultimate, icon: '🔴', desc: t.home.ultimateDesc, color: 'border-red-600/50 hover:border-red-400/80 hover:bg-red-900/10',    progress: 'bg-red-400' },
+  ];
 
   const byDiff = (d: Difficulty) => riddles.filter(r => r.difficulty === d);
   const solvedCount = (d: Difficulty) => byDiff(d).filter(r => r.solved).length;
@@ -26,14 +28,14 @@ export default function GameLobby() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-12">
       <div className="mb-10 text-center animate-fade-in">
-        <h1 className="font-mono font-bold text-3xl text-white mb-2">Choose Your Level</h1>
+        <h1 className="font-mono font-bold text-3xl text-white mb-2">{t.lobby.title}</h1>
         <p className="text-gray-500 font-mono text-sm">
-          {loading ? 'Loading...' : `${riddles.filter(r => r.solved).length} / ${riddles.length} riddles solved · ${totalPoints} pts earned`}
+          {loading ? '...' : `${riddles.filter(r => r.solved).length} / ${riddles.length} · ${totalPoints} pts`}
         </p>
       </div>
 
       {loading ? (
-        <div className="text-center text-green-neon font-mono animate-pulse py-20">Loading vault...</div>
+        <div className="text-center text-green-neon font-mono animate-pulse py-20">...</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-slide-up">
           {LEVELS.map(level => {
@@ -52,7 +54,7 @@ export default function GameLobby() {
                     <span className="text-4xl">{level.icon}</span>
                     <div>
                       <h2 className="font-mono font-bold text-xl text-white group-hover:text-green-neon transition-colors">{level.label}</h2>
-                      <span className="font-mono text-xs text-amber-400">{ptsPerRiddle > 0 ? `${ptsPerRiddle} pts/riddle` : ''}</span>
+                      <span className="font-mono text-xs text-amber-400">{ptsPerRiddle > 0 ? `${ptsPerRiddle} pts` : ''}</span>
                     </div>
                   </div>
                   {solved === levelRiddles.length && levelRiddles.length > 0 && (
@@ -61,11 +63,10 @@ export default function GameLobby() {
                 </div>
 
                 <p className="text-gray-400 text-sm mb-5 leading-relaxed">{level.desc}</p>
-
                 <ProgressBar solved={solved} total={levelRiddles.length} color={level.progress} />
 
                 <div className="mt-4 text-right font-mono text-xs text-gray-500 group-hover:text-gray-300 transition-colors">
-                  Enter →
+                  {lang === 'pt' ? 'Entrar →' : 'Enter →'}
                 </div>
               </Link>
             );

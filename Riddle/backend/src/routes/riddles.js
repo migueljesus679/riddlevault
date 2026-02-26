@@ -15,8 +15,20 @@ const answerLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+function applyLang(riddle, lang) {
+  if (lang === 'pt') {
+    return {
+      ...riddle,
+      title: riddle.title_pt || riddle.title,
+      description: riddle.description_pt || riddle.description,
+      hint: riddle.hint_pt || riddle.hint,
+    };
+  }
+  return riddle;
+}
+
 router.get('/', optionalAuth, (req, res) => {
-  const { difficulty } = req.query;
+  const { difficulty, lang } = req.query;
   const db = getDb();
 
   const validDifficulties = ['easy', 'medium', 'hard', 'ultimate'];
@@ -25,7 +37,8 @@ router.get('/', optionalAuth, (req, res) => {
   }
 
   let query = `
-    SELECT id, title, description, difficulty, hint, image_path, points_reward, order_index
+    SELECT id, title, title_pt, description, description_pt, difficulty,
+           hint, hint_pt, image_path, points_reward, order_index
     FROM riddles WHERE is_active = 1
   `;
   const params = [];
@@ -44,20 +57,23 @@ router.get('/', optionalAuth, (req, res) => {
     const progressMap = {};
     for (const p of progress) progressMap[p.riddle_id] = p;
 
-    return res.json(riddles.map(r => ({
+    return res.json(riddles.map(r => applyLang({
       ...r,
       solved: progressMap[r.id]?.solved === 1 || false,
       attempts: progressMap[r.id]?.attempts || 0,
-    })));
+    }, lang)));
   }
 
-  res.json(riddles.map(r => ({ ...r, solved: false, attempts: 0 })));
+  res.json(riddles.map(r => applyLang({ ...r, solved: false, attempts: 0 }, lang)));
 });
 
 router.get('/:id', optionalAuth, (req, res) => {
+  const { lang } = req.query;
   const db = getDb();
   const riddle = db.prepare(
-    'SELECT id, title, description, difficulty, hint, image_path, points_reward, order_index FROM riddles WHERE id = ? AND is_active = 1'
+    `SELECT id, title, title_pt, description, description_pt, difficulty,
+            hint, hint_pt, image_path, points_reward, order_index
+     FROM riddles WHERE id = ? AND is_active = 1`
   ).get(req.params.id);
   if (!riddle) return res.status(404).json({ error: 'Riddle not found' });
 
@@ -67,15 +83,17 @@ router.get('/:id', optionalAuth, (req, res) => {
     if (p) progress = { solved: p.solved === 1, attempts: p.attempts };
   }
 
-  res.json({ ...riddle, ...progress });
+  res.json(applyLang({ ...riddle, ...progress }, lang));
 });
 
 router.post('/:id/answer', authenticate, answerLimiter, (req, res) => {
-  const { answer } = req.body;
+  const { answer, lang } = req.body;
   if (!answer || typeof answer !== 'string') return res.status(400).json({ error: 'Answer is required' });
 
   const db = getDb();
-  const riddle = db.prepare('SELECT id, answer_hash, points_reward FROM riddles WHERE id = ? AND is_active = 1').get(req.params.id);
+  const riddle = db.prepare(
+    'SELECT id, answer_hash, answer_hash_pt, points_reward FROM riddles WHERE id = ? AND is_active = 1'
+  ).get(req.params.id);
   if (!riddle) return res.status(404).json({ error: 'Riddle not found' });
 
   const user = db.prepare('SELECT id, is_banned FROM users WHERE id = ?').get(req.user.id);
@@ -88,7 +106,8 @@ router.post('/:id/answer', authenticate, answerLimiter, (req, res) => {
   }
 
   const submitted = hashAnswer(answer);
-  const correct = submitted === riddle.answer_hash;
+  // Accept answer in either language
+  const correct = submitted === riddle.answer_hash || (riddle.answer_hash_pt && submitted === riddle.answer_hash_pt);
 
   if (progress) {
     db.prepare('UPDATE user_progress SET attempts = attempts + 1, solved = ?, first_solved_at = CASE WHEN ? = 1 AND first_solved_at IS NULL THEN datetime(\'now\') ELSE first_solved_at END WHERE user_id = ? AND riddle_id = ?')
@@ -101,10 +120,12 @@ router.post('/:id/answer', authenticate, answerLimiter, (req, res) => {
   if (correct) {
     db.prepare('UPDATE users SET points = points + ? WHERE id = ?').run(riddle.points_reward, req.user.id);
     const updatedUser = db.prepare('SELECT points FROM users WHERE id = ?').get(req.user.id);
-    return res.json({ correct: true, points_earned: riddle.points_reward, total_points: updatedUser.points, message: 'Correct! Well done, solver!' });
+    const msg = lang === 'pt' ? 'Correto! Muito bem, decifrador!' : 'Correct! Well done, solver!';
+    return res.json({ correct: true, points_earned: riddle.points_reward, total_points: updatedUser.points, message: msg });
   }
 
-  res.json({ correct: false, message: 'Incorrect answer. Keep thinking...' });
+  const msg = lang === 'pt' ? 'Resposta incorreta. Continua a pensar...' : 'Incorrect answer. Keep thinking...';
+  res.json({ correct: false, message: msg });
 });
 
 module.exports = router;

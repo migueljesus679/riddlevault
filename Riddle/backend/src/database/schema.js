@@ -29,10 +29,13 @@ function initSchema(db) {
     )
   `);
 
-  // Safe migration: add answer_plain to existing DBs that don't have it yet
-  try {
-    db.exec('ALTER TABLE riddles ADD COLUMN answer_plain TEXT');
-  } catch {}
+  // Safe migrations
+  try { db.exec('ALTER TABLE riddles ADD COLUMN answer_plain TEXT'); } catch {}
+  try { db.exec('ALTER TABLE riddles ADD COLUMN title_pt TEXT'); } catch {}
+  try { db.exec('ALTER TABLE riddles ADD COLUMN description_pt TEXT'); } catch {}
+  try { db.exec('ALTER TABLE riddles ADD COLUMN answer_hash_pt TEXT'); } catch {}
+  try { db.exec('ALTER TABLE riddles ADD COLUMN answer_plain_pt TEXT'); } catch {}
+  try { db.exec('ALTER TABLE riddles ADD COLUMN hint_pt TEXT'); } catch {}
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS user_progress (
