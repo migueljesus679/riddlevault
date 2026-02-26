@@ -1,0 +1,9 @@
+node_modules/
+data/
+assets/
+frontend/dist/
+backend/assets/images/
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
