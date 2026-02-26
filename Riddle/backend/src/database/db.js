@@ -1,36 +1,24 @@
-const path = require('path');
-const CompatDB = require('./sqlite-compat');
-const { initSchema } = require('./schema');
+const { Pool } = require('pg');
 
-const DB_PATH = path.join(__dirname, '../../../data/riddle.db');
-
-let db;
-
-function getDb() {
-  if (!db) {
-    const fs = require('fs');
-    const dir = path.dirname(DB_PATH);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-
-    const lockPath = DB_PATH + '.lock';
-    if (fs.existsSync(lockPath)) {
-      console.warn('[db] Stale lock file removed:', lockPath);
-      fs.unlinkSync(lockPath);
-    }
-
-    db = new CompatDB(DB_PATH);
-    db.exec('PRAGMA busy_timeout=5000');
-    db.exec('PRAGMA foreign_keys=ON');
-    initSchema(db);
-  }
-  return db;
+if (!process.env.DATABASE_URL) {
+  throw new Error('DATABASE_URL environment variable is required');
 }
 
-function closeDb() {
-  if (db) {
-    try { db.close(); } catch {}
-    db = null;
-  }
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+});
+
+pool.on('error', (err) => {
+  console.error('Unexpected database error', err);
+});
+
+function getDb() {
+  return pool;
+}
+
+async function closeDb() {
+  await pool.end();
 }
 
 module.exports = { getDb, closeDb };

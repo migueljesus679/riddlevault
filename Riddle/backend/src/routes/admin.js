@@ -9,121 +9,183 @@ router.use(authenticate, adminOnly);
 
 // ─── Players ──────────────────────────────────────────────────────────────────
 
-router.get('/players', (req, res) => {
-  const db = getDb();
-  const players = db.prepare(`
-    SELECT u.id, u.username, u.email, u.role, u.points, u.is_banned, u.created_at,
-           COUNT(CASE WHEN p.solved=1 THEN 1 END) as solved_count
-    FROM users u
-    LEFT JOIN user_progress p ON p.user_id = u.id
-    GROUP BY u.id
-    ORDER BY u.created_at DESC
-  `).all();
-  res.json(players);
+router.get('/players', async (req, res) => {
+  try {
+    const pool = getDb();
+    const { rows } = await pool.query(`
+      SELECT u.id, u.username, u.email, u.role, u.points, u.is_banned, u.created_at,
+             COUNT(CASE WHEN p.solved=1 THEN 1 END) as solved_count
+      FROM users u
+      LEFT JOIN user_progress p ON p.user_id = u.id
+      GROUP BY u.id
+      ORDER BY u.created_at DESC
+    `);
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch players' });
+  }
 });
 
-router.patch('/players/:id', (req, res) => {
+router.patch('/players/:id', async (req, res) => {
   const { points, role, is_banned } = req.body;
-  const db = getDb();
-  const user = db.prepare('SELECT id FROM users WHERE id = ?').get(req.params.id);
-  if (!user) return res.status(404).json({ error: 'Player not found' });
+  try {
+    const pool = getDb();
+    const { rows } = await pool.query('SELECT id FROM users WHERE id = $1', [req.params.id]);
+    if (!rows[0]) return res.status(404).json({ error: 'Player not found' });
 
-  const updates = [];
-  const params = [];
-  if (points !== undefined) { updates.push('points = ?'); params.push(Number(points)); }
-  if (role !== undefined && ['user', 'admin'].includes(role)) { updates.push('role = ?'); params.push(role); }
-  if (is_banned !== undefined) { updates.push('is_banned = ?'); params.push(is_banned ? 1 : 0); }
+    const updates = [];
+    const params = [];
+    if (points !== undefined) { params.push(Number(points)); updates.push(`points = $${params.length}`); }
+    if (role !== undefined && ['user', 'admin'].includes(role)) { params.push(role); updates.push(`role = $${params.length}`); }
+    if (is_banned !== undefined) { params.push(is_banned ? 1 : 0); updates.push(`is_banned = $${params.length}`); }
 
-  if (!updates.length) return res.status(400).json({ error: 'No valid fields to update' });
-  params.push(req.params.id);
-  db.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+    if (!updates.length) return res.status(400).json({ error: 'No valid fields to update' });
+    params.push(req.params.id);
+    await pool.query(`UPDATE users SET ${updates.join(', ')} WHERE id = $${params.length}`, params);
 
-  const updated = db.prepare('SELECT id, username, email, role, points, is_banned FROM users WHERE id = ?').get(req.params.id);
-  res.json(updated);
+    const { rows: updated } = await pool.query(
+      'SELECT id, username, email, role, points, is_banned FROM users WHERE id = $1',
+      [req.params.id]
+    );
+    res.json(updated[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update player' });
+  }
 });
 
-router.delete('/players/:id', (req, res) => {
-  const db = getDb();
+router.delete('/players/:id', async (req, res) => {
   if (Number(req.params.id) === req.user.id) return res.status(400).json({ error: 'Cannot delete yourself' });
-  const result = db.prepare('DELETE FROM users WHERE id = ?').run(req.params.id);
-  if (!result.changes) return res.status(404).json({ error: 'Player not found' });
-  res.json({ message: 'Player deleted' });
+  try {
+    const pool = getDb();
+    const { rowCount } = await pool.query('DELETE FROM users WHERE id = $1', [req.params.id]);
+    if (!rowCount) return res.status(404).json({ error: 'Player not found' });
+    res.json({ message: 'Player deleted' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to delete player' });
+  }
 });
 
-router.delete('/players/:id/progress', (req, res) => {
-  const db = getDb();
-  const progress = db.prepare('SELECT SUM(CASE WHEN solved=1 THEN 1 ELSE 0 END) as solved_count FROM user_progress WHERE user_id = ?').get(req.params.id);
-  db.prepare('DELETE FROM user_progress WHERE user_id = ?').run(req.params.id);
-  db.prepare('UPDATE users SET points = 0 WHERE id = ?').run(req.params.id);
-  res.json({ message: 'Progress reset', cleared_solves: progress?.solved_count || 0 });
+router.delete('/players/:id/progress', async (req, res) => {
+  try {
+    const pool = getDb();
+    const { rows } = await pool.query(
+      'SELECT SUM(CASE WHEN solved=1 THEN 1 ELSE 0 END) as solved_count FROM user_progress WHERE user_id = $1',
+      [req.params.id]
+    );
+    await pool.query('DELETE FROM user_progress WHERE user_id = $1', [req.params.id]);
+    await pool.query('UPDATE users SET points = 0 WHERE id = $1', [req.params.id]);
+    res.json({ message: 'Progress reset', cleared_solves: rows[0]?.solved_count || 0 });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to reset progress' });
+  }
 });
 
 // ─── Riddles ──────────────────────────────────────────────────────────────────
 
-router.get('/riddles', (req, res) => {
-  const db = getDb();
-  const riddles = db.prepare('SELECT id, title, description, difficulty, answer_plain, hint, image_path, points_reward, order_index, is_active FROM riddles ORDER BY difficulty, order_index').all();
-  res.json(riddles);
+router.get('/riddles', async (req, res) => {
+  try {
+    const pool = getDb();
+    const { rows } = await pool.query(
+      'SELECT id, title, description, difficulty, answer_plain, hint, image_path, points_reward, order_index, is_active FROM riddles ORDER BY difficulty, order_index'
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch riddles' });
+  }
 });
 
-router.post('/riddles', (req, res) => {
+router.post('/riddles', async (req, res) => {
   const { title, description, difficulty, answer, hint, image_path, points_reward, order_index } = req.body;
   if (!title || !description || !difficulty || !answer)
     return res.status(400).json({ error: 'title, description, difficulty, and answer are required' });
 
-  const db = getDb();
-  const result = db.prepare(`
-    INSERT INTO riddles (title, description, difficulty, answer_hash, answer_plain, hint, image_path, points_reward, order_index)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(title, description, difficulty, hashAnswer(answer), answer, hint || '', image_path || null, points_reward || 10, order_index || 0);
-
-  const riddle = db.prepare('SELECT id, title, description, difficulty, answer_plain, hint, image_path, points_reward, order_index, is_active FROM riddles WHERE id = ?').get(result.lastInsertRowid);
-  res.status(201).json(riddle);
+  try {
+    const pool = getDb();
+    const { rows } = await pool.query(`
+      INSERT INTO riddles (title, description, difficulty, answer_hash, answer_plain, hint, image_path, points_reward, order_index)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING id, title, description, difficulty, answer_plain, hint, image_path, points_reward, order_index, is_active
+    `, [title, description, difficulty, hashAnswer(answer), answer, hint || '', image_path || null, points_reward || 10, order_index || 0]);
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to create riddle' });
+  }
 });
 
-router.put('/riddles/:id', (req, res) => {
+router.put('/riddles/:id', async (req, res) => {
   const { title, description, difficulty, answer, hint, image_path, points_reward, order_index, is_active } = req.body;
-  const db = getDb();
-  const existing = db.prepare('SELECT id, answer_hash, answer_plain FROM riddles WHERE id = ?').get(req.params.id);
-  if (!existing) return res.status(404).json({ error: 'Riddle not found' });
+  try {
+    const pool = getDb();
+    const { rows: existing } = await pool.query('SELECT id, answer_hash, answer_plain FROM riddles WHERE id = $1', [req.params.id]);
+    if (!existing[0]) return res.status(404).json({ error: 'Riddle not found' });
 
-  const newHash = answer ? hashAnswer(answer) : existing.answer_hash;
-  const newPlain = answer || existing.answer_plain;
-  db.prepare(`
-    UPDATE riddles SET title=?, description=?, difficulty=?, answer_hash=?, answer_plain=?, hint=?, image_path=?, points_reward=?, order_index=?, is_active=?
-    WHERE id=?
-  `).run(title, description, difficulty, newHash, newPlain, hint || '', image_path || null, points_reward, order_index, is_active ? 1 : 0, req.params.id);
+    const newHash = answer ? hashAnswer(answer) : existing[0].answer_hash;
+    const newPlain = answer || existing[0].answer_plain;
+    await pool.query(`
+      UPDATE riddles SET title=$1, description=$2, difficulty=$3, answer_hash=$4, answer_plain=$5,
+        hint=$6, image_path=$7, points_reward=$8, order_index=$9, is_active=$10
+      WHERE id=$11
+    `, [title, description, difficulty, newHash, newPlain, hint || '', image_path || null, points_reward, order_index, is_active ? 1 : 0, req.params.id]);
 
-  const updated = db.prepare('SELECT id, title, description, difficulty, answer_plain, hint, image_path, points_reward, order_index, is_active FROM riddles WHERE id = ?').get(req.params.id);
-  res.json(updated);
+    const { rows: updated } = await pool.query(
+      'SELECT id, title, description, difficulty, answer_plain, hint, image_path, points_reward, order_index, is_active FROM riddles WHERE id = $1',
+      [req.params.id]
+    );
+    res.json(updated[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update riddle' });
+  }
 });
 
-router.delete('/riddles/:id', (req, res) => {
-  const db = getDb();
-  const result = db.prepare('DELETE FROM riddles WHERE id = ?').run(req.params.id);
-  if (!result.changes) return res.status(404).json({ error: 'Riddle not found' });
-  res.json({ message: 'Riddle deleted' });
+router.delete('/riddles/:id', async (req, res) => {
+  try {
+    const pool = getDb();
+    const { rowCount } = await pool.query('DELETE FROM riddles WHERE id = $1', [req.params.id]);
+    if (!rowCount) return res.status(404).json({ error: 'Riddle not found' });
+    res.json({ message: 'Riddle deleted' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to delete riddle' });
+  }
 });
 
 // ─── Stats ────────────────────────────────────────────────────────────────────
 
-router.get('/stats', (req, res) => {
-  const db = getDb();
-  const total_users = db.prepare("SELECT COUNT(*) as n FROM users WHERE role != 'admin'").get().n;
-  const total_solves = db.prepare('SELECT COUNT(*) as n FROM user_progress WHERE solved = 1').get().n;
-  const total_points = db.prepare('SELECT SUM(points) as n FROM users').get().n || 0;
+router.get('/stats', async (req, res) => {
+  try {
+    const pool = getDb();
+    const [usersRes, solvesRes, pointsRes, riddleStatsRes] = await Promise.all([
+      pool.query("SELECT COUNT(*) as n FROM users WHERE role != 'admin'"),
+      pool.query('SELECT COUNT(*) as n FROM user_progress WHERE solved = 1'),
+      pool.query('SELECT SUM(points) as n FROM users'),
+      pool.query(`
+        SELECT r.id, r.title, r.difficulty, r.points_reward,
+               COUNT(CASE WHEN p.solved=1 THEN 1 END) as solve_count,
+               ROUND(AVG(p.attempts), 1) as avg_attempts
+        FROM riddles r
+        LEFT JOIN user_progress p ON p.riddle_id = r.id
+        GROUP BY r.id
+        ORDER BY r.difficulty, r.order_index
+      `),
+    ]);
 
-  const riddle_stats = db.prepare(`
-    SELECT r.id, r.title, r.difficulty, r.points_reward,
-           COUNT(CASE WHEN p.solved=1 THEN 1 END) as solve_count,
-           ROUND(AVG(p.attempts), 1) as avg_attempts
-    FROM riddles r
-    LEFT JOIN user_progress p ON p.riddle_id = r.id
-    GROUP BY r.id
-    ORDER BY r.difficulty, r.order_index
-  `).all();
-
-  res.json({ total_users, total_solves, total_points, riddle_stats });
+    res.json({
+      total_users: Number(usersRes.rows[0].n),
+      total_solves: Number(solvesRes.rows[0].n),
+      total_points: Number(pointsRes.rows[0].n) || 0,
+      riddle_stats: riddleStatsRes.rows,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch stats' });
+  }
 });
 
 module.exports = router;
