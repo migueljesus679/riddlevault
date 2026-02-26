@@ -50,6 +50,20 @@ async function initSchema(pool) {
   await pool.query('CREATE INDEX IF NOT EXISTS idx_progress_user ON user_progress(user_id)');
   await pool.query('CREATE INDEX IF NOT EXISTS idx_progress_riddle ON user_progress(riddle_id)');
   await pool.query('CREATE INDEX IF NOT EXISTS idx_users_points ON users(points)');
+
+  // Safe column migrations (idempotent)
+  const migrations = [
+    'ALTER TABLE riddles ADD COLUMN IF NOT EXISTS title_pt TEXT',
+    'ALTER TABLE riddles ADD COLUMN IF NOT EXISTS description_pt TEXT',
+    'ALTER TABLE riddles ADD COLUMN IF NOT EXISTS answer_hash_pt TEXT',
+    'ALTER TABLE riddles ADD COLUMN IF NOT EXISTS answer_plain_pt TEXT',
+    'ALTER TABLE riddles ADD COLUMN IF NOT EXISTS hint_pt TEXT',
+    'ALTER TABLE riddles ADD COLUMN IF NOT EXISTS audio_path TEXT',
+    'ALTER TABLE riddles ADD COLUMN IF NOT EXISTS answer_plain TEXT',
+  ];
+  for (const sql of migrations) {
+    await pool.query(sql);
+  }
 }
 
 module.exports = { initSchema };

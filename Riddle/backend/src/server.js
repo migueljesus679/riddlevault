@@ -48,6 +48,15 @@ async function autoSeedIfEmpty() {
       const { seed } = require('./database/seed');
       await seed();
       console.log('[seed] Done.');
+    } else {
+      // Always re-seed riddles to apply description/audio updates
+      const { rows: r } = await pool.query('SELECT COUNT(*) as n FROM riddles');
+      if (Number(r[0].n) === 0) {
+        console.log('[seed] No riddles found — re-seeding riddles...');
+        const { seed } = require('./database/seed');
+        await seed();
+        console.log('[seed] Done.');
+      }
     }
   } catch (err) {
     console.error('[seed] Auto-seed failed:', err.message);
