@@ -1,0 +1,80 @@
+import { useState, FormEvent } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+
+export default function Login() {
+  const { login, loading } = useAuth();
+  const navigate = useNavigate();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError('');
+    try {
+      await login(email, password);
+      navigate('/');
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Erro ao iniciar sessão';
+      setError(msg);
+    }
+  };
+
+  return (
+    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-gray-50 py-12 px-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <Link to="/" className="inline-flex items-center gap-2 justify-center mb-6">
+            <div className="bg-primary-500 text-white font-black text-lg px-3 py-1 rounded">DIGI</div>
+            <span className="font-bold text-xl text-dark-800 tracking-tight">CORES</span>
+          </Link>
+          <h1 className="text-2xl font-black text-dark-800">Iniciar sessão</h1>
+          <p className="text-gray-500 text-sm mt-1">Aceda à sua conta Digicores</p>
+        </div>
+
+        <div className="card p-8">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <input
+                type="email" required value={email} onChange={e => setEmail(e.target.value)}
+                className="input-field" placeholder="exemplo@email.com"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <input
+                type="password" required value={password} onChange={e => setPassword(e.target.value)}
+                className="input-field" placeholder="••••••••"
+              />
+            </div>
+
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">{error}</div>
+            )}
+
+            <button type="submit" disabled={loading} className="btn-primary w-full justify-center disabled:opacity-50">
+              {loading ? 'A entrar...' : 'Entrar'}
+            </button>
+          </form>
+
+          <div className="mt-6 pt-6 border-t border-gray-100 text-center">
+            <p className="text-sm text-gray-600">
+              Não tem conta?{' '}
+              <Link to="/registo" className="text-primary-500 hover:text-primary-600 font-semibold">Registar-se</Link>
+            </p>
+          </div>
+
+          <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+            <p className="text-xs text-gray-500 font-medium mb-2">Contas de demonstração:</p>
+            <div className="text-xs text-gray-600 space-y-1">
+              <p><strong>Admin:</strong> admin@digicores.pt / admin123</p>
+              <p><strong>Utilizador:</strong> user@digicores.pt / user123</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

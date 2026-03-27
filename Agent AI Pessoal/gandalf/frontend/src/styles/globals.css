@@ -1,0 +1,29 @@
+@import './animations.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  font-family: 'Crimson Text', serif;
+  background-color: #2d1810;
+  color: #f4e4ba;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #2d1810;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c9a84c;
+  border-radius: 4px;
+}
+
+::selection {
+  background: #c9a84c;
+  color: #2d1810;
+}
